@@ -3,7 +3,7 @@
 use FindBin qw($Bin);
 use lib "./extlib/lib/perl5/";
 use Mojolicious::Lite;
-use Mojo::File 'path';
+use Mojo::File 'path', 'tempfile';
 use IPC::Run3 'run3';
 
 app->mode('production');
@@ -17,11 +17,44 @@ my $config = {
     },
 };
 
+patch '/update' => sub {
+    my ( $stdout, $stderr );
+    run3( [ '/usr/sbin/arp', '-a' ], \undef, \$stdout, \$stderr );
+
+    my %macs;
+
+    for my $line ( split( "\n", $stdout ) ) {
+        next if $line =~ /^\?/;
+        my @fields = split( ' ', $line );
+        next unless $fields[3] =~ /:/;
+        $macs{ $fields[0] } = $fields[3];
+    }
+
+    my $database = path('macs.txt');
+
+    if ( -e $database ) {
+        my $fh = $database->open('<');
+        while (<$fh>) {
+            my @fields = split;
+            $macs{ $fields[0] } = $fields[1];
+        }
+    }
+
+    my $tempfile = tempfile();
+    my $fh       = $tempfile->open('>');
+    for my $name ( keys %macs ) {
+        say $fh $name . ' ' . $macs{$name};
+    }
+    $fh->close;
+    $tempfile->move_to( $database->to_string );
+    shift->render( data => '', status => 201 );
+};
+
 get '/' => sub {
     my $c = shift;
     $c->stash(
         lines => [
-            map { [split] } split( "\n", path('/var/www/hal/macs.txt')->slurp )
+            map { [split] } split( "\n", path('macs.txt')->slurp )
         ]
     );
     $c->render;
@@ -35,7 +68,6 @@ post '/wake-up/:mac' => sub {
     $c->redirect_to('index');
 } => 'wake_up';
 
-# Start the Mojolicious command system
 app->start;
 
 __DATA__
