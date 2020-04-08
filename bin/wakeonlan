@@ -3,23 +3,22 @@
 use FindBin qw($Bin);
 use lib "./extlib/lib/perl5/";
 use Mojolicious::Lite;
-use Mojo::File 'path', 'tempfile';
+use Mojo::File 'path';
 use IPC::Run3 'run3';
+
+my $config = plugin Config => {
+    default => {
+        database_file => "$Bin/macs.txt",
+        arp_command   => [ '/usr/sbin/arp', '-a' ],
+    },
+};
 
 app->mode('production');
 app->secrets( ['HTJVYGBtLzzo7vOb3Xg3'] );
 
-my $config = {
-    allowed_groups => ['abt_edv'],
-    ldap           => {
-        host    => 'ldap.hal.taz,de',
-        user_dn => 'uid=%s,ou=users,dc=taz,dc=de',
-    },
-};
-
 patch '/update' => sub {
     my ( $stdout, $stderr );
-    run3( [ '/usr/sbin/arp', '-a' ], \undef, \$stdout, \$stderr );
+    run3( $config->{arp_command}, \undef, \$stdout, \$stderr );
 
     my %macs;
 
@@ -30,7 +29,7 @@ patch '/update' => sub {
         $macs{ $fields[0] } = $fields[3];
     }
 
-    my $database = path('macs.txt');
+    my $database = path( $config->{database_file} );
 
     if ( -e $database ) {
         my $fh = $database->open('<');
@@ -40,23 +39,45 @@ patch '/update' => sub {
         }
     }
 
-    my $tempfile = tempfile();
+    my $tempfile = path( $config->{database_file} . ".$$" );
     my $fh       = $tempfile->open('>');
     for my $name ( keys %macs ) {
         say $fh $name . ' ' . $macs{$name};
     }
     $fh->close;
     $tempfile->move_to( $database->to_string );
+
     shift->render( data => '', status => 201 );
 };
 
-get '/' => sub {
+helper get_records => sub {
     my $c = shift;
-    $c->stash(
-        lines => [
-            map { [split] } split( "\n", path('macs.txt')->slurp )
-        ]
-    );
+    open( my $fh, '<', $config->{database_file} )
+      or die "Can't open $config->{database_file}: $!\n";
+
+    my @records;
+    while (<$fh>) {
+        my @fields = split;
+        push @records, { mac => $fields[1], name => $fields[0] };
+    }
+    return @records;
+};
+
+get '/' => sub {
+    my $c       = shift;
+    my @records = $c->get_records;
+
+	my @hosts = map { $_->{name} } @records;
+    open( my $nmap, '-|', 'nmap', '-sn', '-Pn', @hosts )
+      or die "Can't call nmap: $!\n";
+    my %up;
+    while (<$nmap>) {
+        if (/Nmap scan report for (\S+) \(/) {
+            $up{$1} = 1;
+        }
+    }
+    $c->stash( records => \@records );
+    $c->stash( up      => \%up );
     $c->render;
 } => 'index';
 
@@ -76,6 +97,10 @@ __DATA__
 
 th {
   text-align: left;
+}
+
+img {
+	vertical-align: middle;
 }
 
 @@ layouts/default.html.ep
@@ -107,12 +132,24 @@ th {
         </tr>
     </thead>
     <tbody>
-% for my $line ( @$lines ) {
+% for my $record ( @$records ) {
         <tr>
-            <td><%= $line->[0] %></td>
-            <td><%= $line->[1] %></td>
-            <td><%= button_to 'wake up' => 'wake_up' => { mac => $line->[1] }  %></td>
+            <td> <img src="<%= $up->{$record->{name}} ? "green" : "red" %>-circle.svg"> <%= $record->{name} %></td>
+            <td><%= $record->{mac} %></td>
+            <td><%= button_to 'wake up' => 'wake_up' => { mac => $record->{mac} }  %></td>
         </tr>
 % }
     </tbody>
 </table>
+
+@@ red-circle.svg
+
+<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+	<circle cx="10" cy="10" r="10" stroke="black" fill="red"/>
+</svg>
+
+@@ green-circle.svg
+
+<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+	<circle cx="10" cy="10" r="10" stroke="black" fill="green"/>
+</svg>
