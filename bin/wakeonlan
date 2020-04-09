@@ -67,13 +67,17 @@ get '/' => sub {
     my $c       = shift;
     my @records = $c->get_records;
 
-	my @hosts = map { $_->{name} } @records;
-    open( my $nmap, '-|', 'nmap', '-sn', '-Pn', @hosts )
-      or die "Can't call nmap: $!\n";
+    my @hosts = map { $_->{name} } @records;
+    open( my $ping, '-|', 'oping', '-c1', @hosts )
+      or die "Can't call oping: $!\n";
     my %up;
-    while (<$nmap>) {
-        if (/Nmap scan report for (\S+) \(/) {
-            $up{$1} = 1;
+    my $host;
+    while (<$ping>) {
+        if (/--- (.*) ping statistics/) {
+            $host = $1;
+        }
+        elsif (/^1 packets transmitted, (0|1) received/) {
+            $up{$host} = $1;
         }
     }
     $c->stash( records => \@records );
