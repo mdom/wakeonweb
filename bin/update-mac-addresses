@@ -1,0 +1,7 @@
+#!/bin/sh
+
+{ cat /var/www/hal/macs.txt; /usr/sbin/arp -a | awk 'NR==1{next}/^?/{next}$4~/:/{ print $1 " " $4}'; } \
+	| tr '[A-Z]' '[a-z]' \
+	| sort \
+	| uniq \
+> /var/www/hal/macs.txt~ && mv /var/www/hal/macs.txt~ /var/www/hal/macs.txt
