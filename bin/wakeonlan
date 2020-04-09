@@ -137,8 +137,9 @@ img {
     </thead>
     <tbody>
 % for my $record ( @$records ) {
+	% my $img_src =  $up->{$record->{name}} ? 'green-circle.svg' : 'red-circle.svg' ;
         <tr>
-            <td> <img src="<%= $up->{$record->{name}} ? "green" : "red" %>-circle.svg"> <%= $record->{name} %></td>
+            <td> <img src="<%= $img_src %>"> <%= $record->{name} %></td>
             <td><%= $record->{mac} %></td>
             <td><%= button_to 'wake up' => 'wake_up' => { mac => $record->{mac} }  %></td>
         </tr>
