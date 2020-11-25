@@ -150,11 +150,11 @@ img {
 @@ red-circle.svg
 
 <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-	<circle cx="10" cy="10" r="10" stroke="black" fill="red"/>
+    <circle cx="10" cy="10" r="8" stroke="black" fill="red"/>
 </svg>
 
 @@ green-circle.svg
 
 <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-	<circle cx="10" cy="10" r="10" stroke="black" fill="green"/>
+    <circle cx="10" cy="10" r="8" stroke="black" fill="green"/>
 </svg>
