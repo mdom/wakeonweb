@@ -32,7 +32,7 @@ patch '/update' => sub {
         say $fh "$db->{$host} $host";
     }
     $fh->close;
-    $tempfile->move_to( $database->to_string );
+    $tempfile->move_to( $config->{database_file}->to_string );
 
     shift->render( data => '', status => 201 );
 };
