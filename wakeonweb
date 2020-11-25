@@ -16,7 +16,8 @@ app->mode('production');
 app->secrets( ['HTJVYGBtLzzo7vOb3Xg3'] );
 
 patch '/update' => sub {
-    my $db = self->get_db;
+    my $c = shift;
+    my $db = $c->get_db;
 
     for (qx($config->{arp_command})) {
         next if /^\?/;
@@ -32,9 +33,9 @@ patch '/update' => sub {
         say $fh "$db->{$host} $host";
     }
     $fh->close;
-    $tempfile->move_to( $config->{database_file}->to_string );
+    $tempfile->move_to( $config->{database_file} );
 
-    shift->render( data => '', status => 201 );
+    $c->render( data => '', status => 201 );
 };
 
 helper get_db => sub {
