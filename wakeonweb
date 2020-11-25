@@ -88,7 +88,7 @@ get '/' => sub {
 post '/wake-up/:mac' => sub {
     my $c   = shift;
     my $mac = $c->stash('mac');
-    $hwaddr_re = join( ':', ('[0-9A-Fa-f]{1,2}') x 6 );
+    my $hwaddr_re = join( ':', ('[0-9A-Fa-f]{1,2}') x 6 );
     if ( $mac !~ $hwaddr_re ) {
         $c->flash( output => 'Argument does not match a hardware address' );
     }
